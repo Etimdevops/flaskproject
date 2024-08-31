@@ -1,0 +1,33 @@
+---
+- name: Ensure Python 3 and Ansible are installed on Amazon Linux 2
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Update the system
+      yum:
+        name: "*"
+        state: latest
+
+    - name: Install Python 3
+      yum:
+        name: python3
+        state: present
+
+    - name: Install EPEL repository
+      amazon_linux_extras:
+        package: epel
+        state: present
+
+    - name: Install Ansible
+      yum:
+        name: ansible
+        state: present
+
+    - name: Verify Ansible installation
+      command: ansible --version
+      register: ansible_version_output
+
+    - name: Display Ansible version
+      debug:
+        msg: "{{ ansible_version_output.stdout }}"

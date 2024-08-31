@@ -1,0 +1,50 @@
+---
+- name: Install Flask Application Dependencies
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Ensure Python 3 and pip are installed
+      package:
+        name:
+          - python3
+          - python3-pip
+        state: present
+
+    - name: Install Flask and required dependencies
+      pip:
+        name:
+          - Flask
+          - Werkzeug
+          - Jinja2
+          - Click
+          - itsdangerous
+          - MarkupSafe
+        state: present
+
+    - name: Install optional Flask extensions
+      pip:
+        name:
+          - Flask-SQLAlchemy
+          - Flask-Migrate
+          - Flask-WTF
+          - Flask-Login
+          - Flask-Mail
+        state: present
+
+    - name: Install Gunicorn for production (optional)
+      pip:
+        name: gunicorn
+        state: present
+
+    - name: Create virtual environment (optional)
+      command: python3 -m venv /path/to/your/venv
+      args:
+        creates: /path/to/your/venv/bin/activate
+
+    - name: Activate virtual environment and install dependencies from requirements.txt (optional)
+      shell: |
+        source /path/to/your/venv/bin/activate && pip install -r /path/to/your/requirements.txt
+      args:
+        chdir: /path/to/your/app
+

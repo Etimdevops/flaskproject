@@ -7,4 +7,4 @@ def home():
     return "I am almost a DevOps Engineer!"
 
 if __name__ == '__main__':
-    app.run()
+    app.run(host='0.0.0.0', port=5000)  # Bind to all interfaces and specify port

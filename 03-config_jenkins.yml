@@ -25,10 +25,3 @@
         name: jenkins
         state: started
         enabled: yes
-
-    - name: Open Jenkins port in the firewall
-      ansible.builtin.firewalld:
-        service: jenkins
-        permanent: yes
-        state: enabled
-        immediate: yes

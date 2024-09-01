@@ -20,8 +20,31 @@
         state: present
         disable_gpg_check: yes
 
+    - name: Enable Jenkins service to start on boot
+      ansible.builtin.systemd:
+        name: jenkins
+        enabled: yes
+
     - name: Start Jenkins service
       ansible.builtin.service:
         name: jenkins
         state: started
-        enabled: yes
+
+    - name: Show Jenkins version
+      ansible.builtin.command:
+        cmd: jenkins --version
+      register: jenkins_version_output
+
+    - name: Display Jenkins version
+      ansible.builtin.debug:
+        msg: "Jenkins version: {{ jenkins_version_output.stdout }}"
+
+    - name: Show Java version
+      ansible.builtin.command:
+        cmd: java -version
+      register: java_version_output
+      ignore_errors: yes
+
+    - name: Display Java version
+      ansible.builtin.debug:
+        msg: "Java version: {{ java_version_output.stderr }}"

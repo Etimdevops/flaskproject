@@ -54,11 +54,10 @@
         state: present
         executable: "{{ venv_path }}/bin/pip"  # Use virtualenv pip if created
 
-    - name: Copy requirements.txt to application directory (optional)
-      copy:
-        src: /path/to/your/local/requirements.txt
+    - name: Create requirements.txt from template
+      template:
+        src: requirements.txt.j2
         dest: "{{ requirements_file }}"
-      when: requirements_file is defined
 
     - name: Install dependencies from requirements.txt (optional)
       pip:

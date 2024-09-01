@@ -1,0 +1,12 @@
+Flask
+Werkzeug
+Jinja2
+Click
+itsdangerous
+MarkupSafe
+Flask-SQLAlchemy
+Flask-Migrate
+Flask-WTF
+Flask-Login
+Flask-Mail
+gunicorn

@@ -6,6 +6,7 @@
     venv_path: /opt/myapp/venv
     requirements_file: /opt/myapp/requirements.txt
     app_directory: /opt/myapp
+    virtualenv: true  # Define this variable to control virtual environment creation
 
   tasks:
     - name: Ensure Python 3 and pip are installed
@@ -24,7 +25,7 @@
       command: python3 -m venv "{{ venv_path }}"
       args:
         creates: "{{ venv_path }}/bin/activate"
-      when: virtualenv | bool
+      when: virtualenv
 
     - name: Install Flask and required dependencies
       pip:
@@ -66,6 +67,6 @@
         requirements: "{{ requirements_file }}"
         state: present
         executable: "{{ venv_path }}/bin/pip"  # Use virtualenv pip if created
-      when: virtualenv | bool and requirements_file is defined
+      when: virtualenv and requirements_file is defined
       args:
         chdir: "{{ app_directory }}"

@@ -2,6 +2,10 @@
 - name: Install Flask Application Dependencies
   hosts: all
   become: yes
+  vars:
+    venv_path: /opt/myapp/venv
+    requirements_file: /opt/myapp/requirements.txt
+    app_directory: /opt/myapp
 
   tasks:
     - name: Ensure Python 3 and pip are installed
@@ -10,6 +14,17 @@
           - python3
           - python3-pip
         state: present
+
+    - name: Create application directory
+      file:
+        path: "{{ app_directory }}"
+        state: directory
+
+    - name: Create virtual environment (optional)
+      command: python3 -m venv "{{ venv_path }}"
+      args:
+        creates: "{{ venv_path }}/bin/activate"
+      when: virtualenv | bool
 
     - name: Install Flask and required dependencies
       pip:
@@ -21,6 +36,7 @@
           - itsdangerous
           - MarkupSafe
         state: present
+        executable: "{{ venv_path }}/bin/pip"  # Use virtualenv pip if created
 
     - name: Install optional Flask extensions
       pip:
@@ -31,20 +47,25 @@
           - Flask-Login
           - Flask-Mail
         state: present
+        executable: "{{ venv_path }}/bin/pip"  # Use virtualenv pip if created
 
     - name: Install Gunicorn for production (optional)
       pip:
         name: gunicorn
         state: present
+        executable: "{{ venv_path }}/bin/pip"  # Use virtualenv pip if created
 
-    - name: Create virtual environment (optional)
-      command: python3 -m venv /path/to/your/venv
+    - name: Copy requirements.txt to application directory (optional)
+      copy:
+        src: /path/to/your/local/requirements.txt
+        dest: "{{ requirements_file }}"
+      when: requirements_file is defined
+
+    - name: Install dependencies from requirements.txt (optional)
+      pip:
+        requirements: "{{ requirements_file }}"
+        state: present
+        executable: "{{ venv_path }}/bin/pip"  # Use virtualenv pip if created
+      when: virtualenv | bool and requirements_file is defined
       args:
-        creates: /path/to/your/venv/bin/activate
-
-    - name: Activate virtual environment and install dependencies from requirements.txt (optional)
-      shell: |
-        source /path/to/your/venv/bin/activate && pip install -r /path/to/your/requirements.txt
-      args:
-        chdir: /path/to/your/app
-
+        chdir: "{{ app_directory }}"

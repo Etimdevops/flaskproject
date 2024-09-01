@@ -9,10 +9,9 @@
         name: java-11-amazon-corretto
         state: present
 
-    - name: Add Jenkins repository GPG key
-      ansible.builtin.rpm_key:
-        state: present
-        key: https://pkg.jenkins.io/redhat/jenkins.io.key
+    - name: Import Jenkins GPG key manually
+      ansible.builtin.command:
+        cmd: rpm --import https://pkg.jenkins.io/redhat/jenkins.io.key
 
     - name: Add Jenkins repository
       ansible.builtin.yum_repository:
@@ -36,7 +35,4 @@
 
     - name: Open Jenkins port in the firewall
       ansible.builtin.firewalld:
-        service: jenkins
-        permanent: yes
-        state: enabled
-        immediate: yes
+        service:

@@ -9,23 +9,16 @@
         name: java-11-amazon-corretto
         state: present
 
-    - name: Import Jenkins GPG key manually
-      ansible.builtin.command:
-        cmd: rpm --import https://pkg.jenkins.io/redhat/jenkins.io.key
+    - name: Download Jenkins RPM package
+      ansible.builtin.get_url:
+        url: https://pkg.jenkins.io/redhat-stable/jenkins-2.462.1-1.1.noarch.rpm
+        dest: /tmp/jenkins.rpm
 
-    - name: Add Jenkins repository
-      ansible.builtin.yum_repository:
-        name: jenkins
-        description: Jenkins Stable Repo
-        baseurl: https://pkg.jenkins.io/redhat-stable/
-        gpgcheck: yes
-        gpgkey: https://pkg.jenkins.io/redhat/jenkins.io.key
-        enabled: yes
-
-    - name: Install Jenkins
+    - name: Install Jenkins package with GPG check disabled
       ansible.builtin.yum:
-        name: jenkins
+        name: /tmp/jenkins.rpm
         state: present
+        disable_gpg_check: yes
 
     - name: Start Jenkins service
       ansible.builtin.service:
@@ -35,4 +28,7 @@
 
     - name: Open Jenkins port in the firewall
       ansible.builtin.firewalld:
-        service:
+        service: jenkins
+        permanent: yes
+        state: enabled
+        immediate: yes

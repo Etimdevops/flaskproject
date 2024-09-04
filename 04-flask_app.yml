@@ -1,85 +1,61 @@
 ---
-- name: Provision and configure EC2 instance for Flask web app
-  hosts: flask_app_servers
+- hosts: flask_servers
   become: yes
-
   vars:
-    flask_app_dir: /opt/flaskapp
-    flask_app_repo: https://github.com/Etimdevops/flaskproject.git
-    flask_app_service_name: flaskapp
+    flask_app_directory: /opt/flask_app
+    flask_app_service: flask_app
+    repository_url: https://github.com/yourusername/your-flask-app-repo.git
+    python_version: python3
 
   tasks:
-
-    - name: Update and upgrade the system
-      yum:
-        name: "*"
-        state: latest
-
-    - name: Install required packages
-      yum:
+    - name: Ensure necessary packages are installed
+      amazon.aws.package:
         name:
-          - python3
-          - python3-virtualenv
-          - python3-pip
           - git
-          - firewalld
+          - "{{ python_version }}"
+          - "{{ python_version }}-pip"
+          - "{{ python_version }}-venv"
         state: present
 
     - name: Clone the Flask application repository
-      git:
-        repo: "{{ flask_app_repo }}"
-        dest: "{{ flask_app_dir }}"
+      ansible.builtin.git:
+        repo: "{{ repository_url }}"
+        dest: "{{ flask_app_directory }}"
         version: main
 
-    - name: Create a Python virtual environment
-      command: python3 -m venv venv
-      args:
-        chdir: "{{ flask_app_dir }}"
+    - name: Set up the Python virtual environment
+      ansible.builtin.command:
+        cmd: "{{ python_version }} -m venv venv"
+        chdir: "{{ flask_app_directory }}"
 
-    - name: Install Python dependencies
-      pip:
-        requirements: "{{ flask_app_dir }}/requirements.txt"
-        virtualenv: "{{ flask_app_dir }}/venv"
+    - name: Install the required Python packages
+      ansible.builtin.command:
+        cmd: "venv/bin/pip install -r requirements.txt"
+        chdir: "{{ flask_app_directory }}"
 
-    - name: Create a systemd service for the Flask app
-      copy:
-        dest: /etc/systemd/system/{{ flask_app_service_name }}.service
-        content: |
-          [Unit]
-          Description=Flask Application
+    - name: Create a systemd service for the Flask application
+      ansible.builtin.template:
+        src: flask_app.service.j2
+        dest: /etc/systemd/system/{{ flask_app_service }}.service
 
-          [Service]
-          User=ec2-user
-          WorkingDirectory={{ flask_app_dir }}
-          Environment="PATH={{ flask_app_dir }}/venv/bin"
-          ExecStart={{ flask_app_dir }}/venv/bin/python3 flask_project.py
+    - name: Reload systemd to apply the new service
+      ansible.builtin.systemd:
+        daemon_reload: yes
 
-          [Install]
-          WantedBy=multi-user.target
-
-    - name: Reload systemd to apply changes
-      command: systemctl daemon-reload
-
-    - name: Enable and start the Flask service
-      systemd:
-        name: "{{ flask_app_service_name }}"
-        enabled: yes
-        state: started
-
-    - name: Start and enable firewalld
-      systemd:
-        name: firewalld
+    - name: Start and enable the Flask application service
+      ansible.builtin.systemd:
+        name: "{{ flask_app_service }}"
         state: started
         enabled: yes
 
-    - name: Allow HTTP traffic through the firewall
-      firewalld:
+    - name: Open the firewall to allow access to the Flask app
+      ansible.builtin.firewalld:
         port: 5000/tcp
         permanent: yes
         state: enabled
         immediate: yes
 
-    - name: Restart the Flask service
-      systemd:
-        name: "{{ flask_app_service_name }}"
+    - name: Restart firewalld to apply changes
+      ansible.builtin.service:
+        name: firewalld
         state: restarted

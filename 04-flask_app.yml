@@ -1,0 +1,85 @@
+---
+- name: Provision and configure EC2 instance for Flask web app
+  hosts: flask_app_servers
+  become: yes
+
+  vars:
+    flask_app_dir: /opt/flaskapp
+    flask_app_repo: https://github.com/Etimdevops/flaskproject.git
+    flask_app_service_name: flaskapp
+
+  tasks:
+
+    - name: Update and upgrade the system
+      yum:
+        name: "*"
+        state: latest
+
+    - name: Install required packages
+      yum:
+        name:
+          - python3
+          - python3-virtualenv
+          - python3-pip
+          - git
+          - firewalld
+        state: present
+
+    - name: Clone the Flask application repository
+      git:
+        repo: "{{ flask_app_repo }}"
+        dest: "{{ flask_app_dir }}"
+        version: main
+
+    - name: Create a Python virtual environment
+      command: python3 -m venv venv
+      args:
+        chdir: "{{ flask_app_dir }}"
+
+    - name: Install Python dependencies
+      pip:
+        requirements: "{{ flask_app_dir }}/requirements.txt"
+        virtualenv: "{{ flask_app_dir }}/venv"
+
+    - name: Create a systemd service for the Flask app
+      copy:
+        dest: /etc/systemd/system/{{ flask_app_service_name }}.service
+        content: |
+          [Unit]
+          Description=Flask Application
+
+          [Service]
+          User=ec2-user
+          WorkingDirectory={{ flask_app_dir }}
+          Environment="PATH={{ flask_app_dir }}/venv/bin"
+          ExecStart={{ flask_app_dir }}/venv/bin/python3 flask_project.py
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Reload systemd to apply changes
+      command: systemctl daemon-reload
+
+    - name: Enable and start the Flask service
+      systemd:
+        name: "{{ flask_app_service_name }}"
+        enabled: yes
+        state: started
+
+    - name: Start and enable firewalld
+      systemd:
+        name: firewalld
+        state: started
+        enabled: yes
+
+    - name: Allow HTTP traffic through the firewall
+      firewalld:
+        port: 5000/tcp
+        permanent: yes
+        state: enabled
+        immediate: yes
+
+    - name: Restart the Flask service
+      systemd:
+        name: "{{ flask_app_service_name }}"
+        state: restarted

@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# Ensure Python and dependencies are installed
+python3 -m venv venv
+source venv/bin/activate
+pip3 install -r requirements.txt  # Ensure you have a requirements.txt in your repo
+
+# Run Flask in the background
+nohup python3 flask_project.py &
+
+# Capture the Flask process ID
+FLASK_PID=$!
+
+# Optional: Add a sleep to give the server time to start
+sleep 5
+
+# Verify the application is running
+curl http://127.0.0.1:5000
+
+# Kill the Flask server to clean up
+PID=$(pgrep -f 'python3 flask_project.py')
+if [ -n "$PID" ]; then
+  kill $PID
+  echo "Flask application stopped."
+else
+  echo "Flask application not found."
+fi
+
+# Deactivate the virtual environment
+deactivate

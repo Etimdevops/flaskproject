@@ -4,7 +4,7 @@
   vars:
     flask_app_directory: /opt/flask_app
     flask_app_service: flask_app
-    repository_url: https://github.com/yourusername/your-flask-app-repo.git
+    repository_url: https://github.com/Etimdevops/flaskproject.git
     python_version: python3
 
   tasks:

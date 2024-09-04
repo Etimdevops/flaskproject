@@ -1,5 +1,5 @@
 ---
-- hosts: flask_servers
+- hosts: n1
   become: yes
   vars:
     flask_app_directory: /opt/flask_app

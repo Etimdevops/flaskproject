@@ -1,0 +1,162 @@
+pipeline {
+    agent any
+
+    environment {
+        SSH_KEY_ID = 'my-private-key-file' // Replace with your Jenkins credentials ID
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/Etimdevops/flaskproject.git'
+            }
+        }
+
+        stage('Setup Python Environment') {
+            steps {
+                sh '''
+                # Create Python virtual environment
+                python3 -m venv venv
+                
+                # Activate virtual environment
+                source venv/bin/activate
+                
+                # Install required packages
+                pip install -r requirements.txt
+                '''
+            }
+        }
+
+        stage('Test Application') {
+            steps {
+                sh '''
+                # Activate the virtual environment
+                source venv/bin/activate
+                
+                # Ensure the Flask application is not already running
+                FLASK_PID=$(pgrep -f 'python3 flask_project.py') || true
+                if [ -n "$FLASK_PID" ]; then
+                    kill $FLASK_PID
+                    echo "Existing Flask application stopped."
+                fi
+                
+                # Run the Flask application in the background
+                nohup python3 flask_project.py --host=0.0.0.0 --port=5000 &
+                FLASK_PID=$!
+                
+                # Wait for a moment to ensure the application starts
+                sleep 10
+                
+                # Test the Flask application
+                curl -f http://172.31.87.42:5000 || exit 1
+                
+                # Stop the Flask application
+                if [ -n "$FLASK_PID" ]; then
+                    kill $FLASK_PID
+                    echo "Flask application stopped."
+                else
+                    echo "Flask application not found."
+                fi
+                
+                # Deactivate the virtual environment
+                deactivate
+                '''
+            }
+        }
+
+        stage('Deploy with Ansible') {
+            steps {
+                withCredentials([file(credentialsId: "${SSH_KEY_ID}", variable: 'SSH_KEY')]) {
+                    sh 'ansible-playbook -i hosts.ini -e ansible_ssh_private_key_file=${SSH_KEY} 04-flask_app.yml'
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            sh '''
+            # Ensure Flask application is stopped and virtual environment is deactivated
+            FLASK_PID=$(pgrep -f 'python3 flask_project.py') || true
+            if [ -n "$FLASK_PID" ]; then
+                kill $FLASK_PID
+                echo "Flask application stopped."
+            else
+                echo "Flask application not found."
+            fi
+            
+            # Check if virtual environment is active
+            if [ -n "$VIRTUAL_ENV" ]; then
+                deactivate || true
+            fi
+            '''
+        }
+    }
+}
+
+
+
+
+
+---
+- hosts: n1
+  become: yes
+  vars:
+    flask_app_directory: /opt/flask_app
+    flask_app_service: flask_app
+    repository_url: https://github.com/Etimdevops/flaskproject.git
+    python_version: python3
+
+  tasks:
+    - name: Ensure necessary packages are installed
+      ansible.builtin.yum:
+        name:
+          - git
+          - "{{ python_version }}"
+          - "{{ python_version }}-pip"
+          - "{{ python_version }}-venv"
+        state: present
+
+    - name: Clone the Flask application repository
+      ansible.builtin.git:
+        repo: "{{ repository_url }}"
+        dest: "{{ flask_app_directory }}"
+        version: main
+
+    - name: Set up the Python virtual environment
+      ansible.builtin.command:
+        cmd: "{{ python_version }} -m venv venv"
+        chdir: "{{ flask_app_directory }}"
+
+    - name: Install the required Python packages
+      ansible.builtin.command:
+        cmd: "venv/bin/pip install -r requirements.txt"
+        chdir: "{{ flask_app_directory }}"
+
+    - name: Create a systemd service for the Flask application
+      ansible.builtin.template:
+        src: flask_app.service.j2
+        dest: /etc/systemd/system/{{ flask_app_service }}.service
+
+    - name: Reload systemd to apply the new service
+      ansible.builtin.systemd:
+        daemon_reload: yes
+
+    - name: Start and enable the Flask application service
+      ansible.builtin.systemd:
+        name: "{{ flask_app_service }}"
+        state: started
+        enabled: yes
+
+    - name: Open the firewall to allow access to the Flask app
+      ansible.builtin.firewalld:
+        port: 5000/tcp
+        permanent: yes
+        state: enabled
+        immediate: yes
+
+    - name: Restart firewalld to apply changes
+      ansible.builtin.systemd:
+        name: firewalld
+        state: restarted
+

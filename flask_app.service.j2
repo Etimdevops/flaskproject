@@ -1,11 +1,13 @@
 [Unit]
 Description=Flask Application
+After=network.target
 
 [Service]
 ExecStart={{ flask_app_directory }}/venv/bin/python {{ flask_app_directory }}/flask_project.py
 WorkingDirectory={{ flask_app_directory }}
 Restart=always
 User=ec2-user
+Group=ec2-user
 
 [Install]
 WantedBy=multi-user.target

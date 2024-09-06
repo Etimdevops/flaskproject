@@ -20,7 +20,7 @@
         dest: "{{ git_clone_dir }}"
         clone: yes
         update: yes
-        version: master  # Adjust branch or tag if necessary
+        version: main  # Adjust branch or tag if necessary
 
     - name: Copy Flask service file
       template:

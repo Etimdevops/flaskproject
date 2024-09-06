@@ -27,72 +27,74 @@ pipeline {
             }
         }
 
+        stage('Build Application') {
+            steps {
+                sh '''
+                # Activate virtual environment
+                source venv/bin/activate
+                
+                # Ensure Python build tools are installed
+                pip install --upgrade setuptools
+                
+                # Perform application-specific build steps (if any)
+                # This is where you might include other build commands if necessary
+                echo "Application built successfully."
+                '''
+            }
+        }
+
         stage('Test Application') {
             steps {
                 sh '''
                 # Activate the virtual environment
                 source venv/bin/activate
-                
+
                 # Ensure the Flask application is not already running
-                FLASK_PID=$(pgrep -f 'python3 flask_project.py') || true
+                FLASK_PID=$(pgrep -f 'python3 app.py') || true
                 if [ -n "$FLASK_PID" ]; then
                     kill $FLASK_PID
                     echo "Existing Flask application stopped."
                 fi
-                
+
                 # Run the Flask application in the background
-                nohup python3 flask_project.py --host=0.0.0.0 --port=5000 &
+                nohup python3 app.py --host=0.0.0.0 --port=5000 &
                 FLASK_PID=$!
-                
+
                 # Wait for a moment to ensure the application starts
                 sleep 10
-                
+
                 # Test the Flask application
-                curl -f http://172.31.87.42:5000 || exit 1
-                
-                # Stop the Flask application
-                if [ -n "$FLASK_PID" ]; then
-                    kill $FLASK_PID
-                    echo "Flask application stopped."
+                if curl -f http://localhost:5000; then
+                    echo "Flask application is running and accessible."
                 else
-                    echo "Flask application not found."
+                    echo "Flask application is not accessible."
+                    exit 1
                 fi
-                
-                # Deactivate the virtual environment
-                deactivate
+
+                # Stop the Flask application
+                kill $FLASK_PID
+                echo "Flask application stopped."
                 '''
             }
         }
-
-        stage('Deploy with Ansible') {
-            steps {
-                withCredentials([file(credentialsId: "${SSH_KEY_ID}", variable: 'SSH_KEY')]) {
-                    sh 'ansible-playbook -i hosts.ini -e ansible_ssh_private_key_file=${SSH_KEY} 04-flask_app.yml'
-                }
-            }
-        }
     }
-    
+
     post {
         always {
             sh '''
-            # Ensure Flask application is stopped and virtual environment is deactivated
-            FLASK_PID=$(pgrep -f 'python3 flask_project.py') || true
+            # Clean up any remaining Flask processes
+            FLASK_PID=$(pgrep -f 'python3 app.py') || true
             if [ -n "$FLASK_PID" ]; then
                 kill $FLASK_PID
-                echo "Flask application stopped."
-            else
-                echo "Flask application not found."
-            fi
-            
-            # Check if virtual environment is active
-            if [ -n "$VIRTUAL_ENV" ]; then
-                deactivate || true
+                echo "Cleaned up Flask application process."
             fi
             '''
         }
     }
 }
+
+
+
 
 
 

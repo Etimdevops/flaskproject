@@ -1,0 +1,17 @@
+- name: Deploy Flask Application
+  hosts: n1
+  become: yes
+  tasks:
+    - name: Copy Flask service file
+      template:
+        src: flask_app.service.j2
+        dest: /etc/systemd/system/flask_app.service
+
+    - name: Reload systemd
+      command: systemctl daemon-reload
+
+    - name: Start and enable Flask service
+      systemd:
+        name: flask_app
+        state: started
+        enabled: yes
